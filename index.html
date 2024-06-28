@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Snake Fußball - Wer frisst die meisten Bälle?</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #1a1a1a;
+            font-family: Arial, sans-serif;
+            color: #FFFFFF;
+        }
+        #gameContainer {
+            text-align: center;
+        }
+        #gameCanvas {
+            border: 2px solid white;
+        }
+        #gameTitle {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        #gameSubtitle {
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+        #score {
+            font-size: 20px;
+            margin-top: 10px;
+        }
+        #scoreForm {
+            margin-top: 20px;
+            display: none;
+        }
+        #scoreForm input, #scoreForm button {
+            margin: 5px;
+            padding: 5px;
+        }
+        #scoreList {
+            margin-top: 20px;
+            width: 100%;
+            max-width: 400px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #FFFFFF;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #FF0000;
+            color: #FFFFFF;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="gameTitle">Snake Fußball</div>
+        <div id="gameSubtitle">Wer frisst die meisten Bälle?</div>
+        <canvas id="gameCanvas" width="400" height="400"></canvas>
+        <div id="score">Gefressene Bälle: 0</div>
+        <form id="scoreForm">
+            <input type="text" id="nameInput" placeholder="Vorname" required>
+            <input type="text" id="companyInput" placeholder="Unternehmen" required>
+            <button type="submit">Score speichern</button>
+        </form>
+        <div id="scoreList">
+            <h3>Top Scorer</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Unternehmen</th>
+                        <th>Gefressene Bälle</th>
+                    </tr>
+                </thead>
+                <tbody id="scoreTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
+        const scoreForm = document.getElementById('scoreForm');
+        const nameInput = document.getElementById('nameInput');
+        const companyInput = document.getElementById('companyInput');
+        const scoreTableBody = document.getElementById('scoreTableBody');
+
+        const gridSize = 20;
+        const tileCount = canvas.width / gridSize;
+
+        let snake = [{x: 10, y: 10}];
+        let ball = {x: 15, y: 15};
+        let dx = 0;
+        let dy = 0;
+        let score = 0;
+        let gameSpeed = 100; // Anfangsgeschwindigkeit
+        let lastSpeedIncreaseTime = 0;
+
+        let highScores = [];
+
+        function drawGame() {
+            clearCanvas();
+            moveSnake();
+            drawSnake();
+            drawBall();
+            checkCollision();
+            updateScore();
+            increaseSpeed();
+        }
+
+        function clearCanvas() {
+            // Zeichne grünes Feld
+            ctx.fillStyle = '#4CAF50';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Zeichne weiße Linien
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(1, 1, canvas.width - 2, canvas.height - 2);
+            
+            // Zeichne Mittellinie
+            ctx.beginPath();
+            ctx.moveTo(canvas.width / 2, 0);
+            ctx.lineTo(canvas.width / 2, canvas.height);
+            ctx.stroke();
+            
+            // Zeichne Mittelkreis
+            ctx.beginPath();
+            ctx.arc(canvas.width / 2, canvas.height / 2, 50, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        function moveSnake() {
+            const head = {x: snake[0].x + dx, y: snake[0].y + dy};
+            snake.unshift(head);
+
+            if (head.x === ball.x && head.y === ball.y) {
+                score++;
+                generateBall();
+            } else {
+                snake.pop();
+            }
+        }
+
+        function drawSnake() {
+            snake.forEach((segment, index) => {
+                ctx.fillStyle = '#FF0000';
+                ctx.fillRect(segment.x * gridSize, segment.y * gridSize, gridSize - 2, gridSize - 2);
+                if (index === 0) {
+                    // Zeichne fröhliches Gesicht
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.beginPath();
+                    ctx.arc(segment.x * gridSize + gridSize / 2, segment.y * gridSize + gridSize / 2, gridSize / 4, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.arc(segment.x * gridSize + gridSize / 2, segment.y * gridSize + gridSize / 2 + 2, gridSize / 6, 0, Math.PI);
+                    ctx.stroke();
+                }
+            });
+        }
+
+        function drawBall() {
+            ctx.fillStyle = '#FFFFFF';
+            ctx.beginPath();
+            ctx.arc(ball.x * gridSize + gridSize / 2, ball.y * gridSize + gridSize / 2, gridSize / 2 - 2, 0, 2 * Math.PI);
+            ctx.fill();
+            // Zeichne schwarzes Muster auf dem Ball
+            ctx.fillStyle = '#000000';
+            for (let i = 0; i < 5; i++) {
+                ctx.beginPath();
+                ctx.arc(ball.x * gridSize + gridSize / 2, ball.y * gridSize + gridSize / 2, gridSize / 4, (i * 72 + 18) * Math.PI / 180, (i * 72 + 54) * Math.PI / 180);
+                ctx.lineTo(ball.x * gridSize + gridSize / 2, ball.y * gridSize + gridSize / 2);
+                ctx.fill();
+            }
+        }
+
+        function generateBall() {
+            do {
+                ball = {
+                    x: Math.floor(Math.random() * tileCount),
+                    y: Math.floor(Math.random() * tileCount)
+                };
+            } while (isOnSnake(ball));
+        }
+
+        function isOnSnake(position) {
+            return snake.some(segment => segment.x === position.x && segment.y === position.y);
+        }
+
+        function checkCollision() {
+            const head = snake[0];
+
+            if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount) {
+                endGame();
+            }
+
+            for (let i = 1; i < snake.length; i++) {
+                if (head.x === snake[i].x && head.y === snake[i].y) {
+                    endGame();
+                }
+            }
+        }
+
+        function endGame() {
+            scoreForm.style.display = 'block';
+        }
+
+        function resetGame() {
+            snake = [{x: 10, y: 10}];
+            generateBall();
+            dx = 0;
+            dy = 0;
+            score = 0;
+            gameSpeed = 100;
+            lastSpeedIncreaseTime = 0;
+            scoreForm.style.display = 'none';
+        }
+
+        function updateScore() {
+            scoreElement.textContent = `Gefressene Bälle: ${score}`;
+        }
+
+        function increaseSpeed() {
+            const currentTime = Date.now();
+            if (currentTime - lastSpeedIncreaseTime >= 15000) { // 15 Sekunden
+                gameSpeed = Math.max(50, gameSpeed - 10); // Erhöhe die Geschwindigkeit, aber nicht unter 50ms
+                lastSpeedIncreaseTime = currentTime;
+                clearInterval(gameInterval);
+                gameInterval = setInterval(drawGame, gameSpeed);
+            }
+        }
+
+        document.addEventListener('keydown', (event) => {
+            switch(event.key) {
+                case 'ArrowLeft': if (dx === 0) { dx = -1; dy = 0; } break;
+                case 'ArrowRight': if (dx === 0) { dx = 1; dy = 0; } break;
+                case 'ArrowUp': if (dy === 0) { dx = 0; dy = -1; } break;
+                case 'ArrowDown': if (dy === 0) { dx = 0; dy = 1; } break;
+            }
+        });
+
+        scoreForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const name = nameInput.value;
+            const company = companyInput.value;
+            addHighScore(name, company, score);
+            updateScoreList();
+            resetGame();
+        });
+
+        function addHighScore(name, company, score) {
+            highScores.push({name, company, score});
+            highScores.sort((a, b) => b.score - a.score);
+            highScores = highScores.slice(0, 10); // Behalte nur die Top 10 Scores
+        }
+
+        function updateScoreList() {
+            scoreTableBody.innerHTML = '';
+            highScores.forEach(entry => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${entry.name}</td>
+                    <td>${entry.company}</td>
+                    <td>${entry.score}</td>
+                `;
+                scoreTableBody.appendChild(row);
+            });
+        }
+
+        let gameInterval = setInterval(drawGame, gameSpeed);
+    </script>
+</body>
+</html>
