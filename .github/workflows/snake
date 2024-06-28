@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snake Fußball - Wer ist der Beste?</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #000000;
+            font-family: Arial, sans-serif;
+            color: #FFFF00;
+        }
+        #gameContainer {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #gameTitle {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        #gameSubtitle {
+            font-size: 18px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        #gameCanvas {
+            border: 2px solid #FFFF00;
+        }
+        #score {
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+        #scoreForm {
+            margin-top: 20px;
+            display: none;
+        }
+        #scoreForm input, #scoreForm button {
+            margin: 5px;
+            padding: 5px;
+        }
+        #scoreList {
+            margin-top: 20px;
+            width: 100%;
+            max-width: 400px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #FFFF00;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #FFFF00;
+            color: #000000;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="gameTitle">Snake Fußball</div>
+        <div id="gameSubtitle">Wer ist der Beste?</div>
+        <div id="score">Tore: 0</div>
+        <canvas id="gameCanvas" width="400" height="400"></canvas>
+        <form id="scoreForm">
+            <input type="text" id="nameInput" placeholder="Vorname" required>
+            <input type="text" id="companyInput" placeholder="Unternehmen" required>
+            <button type="submit">Score speichern</button>
+        </form>
+        <div id="scoreList">
+            <h3>Top Scorer</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Unternehmen</th>
+                        <th>Tore</th>
+                    </tr>
+                </thead>
+                <tbody id="scoreTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // Der JavaScript-Code bleibt unverändert
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
+        const scoreForm = document.getElementById('scoreForm');
+        const nameInput = document.getElementById('nameInput');
+        const companyInput = document.getElementById('companyInput');
+        const scoreTableBody = document.getElementById('scoreTableBody');
+
+        const gridSize = 20;
+        const tileCount = canvas.width / gridSize;
+
+        let player = [
+            {x: 10, y: 10},
+        ];
+        let ball = {x: 15, y: 15};
+        let dx = 0;
+        let dy = 0;
+        let score = 0;
+        let gameOver = false;
+
+        let highScores = [];
+
+        function drawGame() {
+            if (gameOver) return;
+
+            clearCanvas();
+            movePlayer();
+            drawPlayer();
+            drawBall();
+            checkCollision();
+            updateScore();
+        }
+
+        function clearCanvas() {
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function movePlayer() {
+            const head = {x: player[0].x + dx, y: player[0].y + dy};
+            player.unshift(head);
+
+            if (head.x === ball.x && head.y === ball.y) {
+                score++;
+                generateBall();
+            } else {
+                player.pop();
+            }
+        }
+
+        function drawPlayer() {
+            player.forEach((segment, index) => {
+                ctx.fillStyle = index === 0 ? '#FFFF00' : '#808000';
+                ctx.fillRect(segment.x * gridSize, segment.y * gridSize, gridSize - 2, gridSize - 2);
+                if (index === 0) {
+                    ctx.fillStyle = '#000000';
+                    ctx.font = '15px Arial';
+                    ctx.fillText('⚽', segment.x * gridSize + 2, segment.y * gridSize + 15);
+                }
+            });
+        }
+
+        function drawBall() {
+            ctx.fillStyle = '#FF0000';
+            ctx.beginPath();
+            ctx.arc(ball.x * gridSize + gridSize / 2, ball.y * gridSize + gridSize / 2, gridSize / 2 - 2, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+
+        function generateBall() {
+            ball.x = Math.floor(Math.random() * tileCount);
+            ball.y = Math.floor(Math.random() * tileCount);
+        }
+
+        function checkCollision() {
+            const head = player[0];
+
+            if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount) {
+                endGame();
+            }
+
+            for (let i = 1; i < player.length; i++) {
+                if (head.x === player[i].x && head.y === player[i].y) {
+                    endGame();
+                }
+            }
+        }
+
+        function endGame() {
+            gameOver = true;
+            scoreForm.style.display = 'block';
+        }
+
+        function resetGame() {
+            player = [{x: 10, y: 10}];
+            ball = {x: 15, y: 15};
+            dx = 0;
+            dy = 0;
+            score = 0;
+            gameOver = false;
+            scoreForm.style.display = 'none';
+        }
+
+        function updateScore() {
+            scoreElement.textContent = `Tore: ${score}`;
+        }
+
+        document.addEventListener('keydown', changeDirection);
+
+        function changeDirection(event) {
+            const LEFT_KEY = 37;
+            const RIGHT_KEY = 39;
+            const UP_KEY = 38;
+            const DOWN_KEY = 40;
+
+            const keyPressed = event.keyCode;
+
+            const goingUp = dy === -1;
+            const goingDown = dy === 1;
+            const goingRight = dx === 1;
+            const goingLeft = dx === -1;
+
+            if (keyPressed === LEFT_KEY && !goingRight) {
+                dx = -1;
+                dy = 0;
+            }
+
+            if (keyPressed === UP_KEY && !goingDown) {
+                dx = 0;
+                dy = -1;
+            }
+
+            if (keyPressed === RIGHT_KEY && !goingLeft) {
+                dx = 1;
+                dy = 0;
+            }
+
+            if (keyPressed === DOWN_KEY && !goingUp) {
+                dx = 0;
+                dy = 1;
+            }
+        }
+
+        scoreForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const name = nameInput.value;
+            const company = companyInput.value;
+            addHighScore(name, company, score);
+            updateScoreList();
+            resetGame();
+        });
+
+        function addHighScore(name, company, score) {
+            highScores.push({name, company, score});
+            highScores.sort((a, b) => b.score - a.score);
+            highScores = highScores.slice(0, 10); // Keep only top 10 scores
+        }
+
+        function updateScoreList() {
+            scoreTableBody.innerHTML = '';
+            highScores.forEach(entry => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${entry.name}</td>
+                    <td>${entry.company}</td>
+                    <td>${entry.score}</td>
+                `;
+                scoreTableBody.appendChild(row);
+            });
+        }
+
+        setInterval(drawGame, 100);
+    </script>
+</body>
+</html>
