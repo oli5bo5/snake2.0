@@ -393,22 +393,11 @@
         // Audio Context
         let audioCtx;
 
-        let highScores = [
+        let highScores = JSON.parse(localStorage.getItem('premiumSnakeScores')) || [
             { name: "Spieler 1", company: "Profi", score: 42 },
             { name: "Spieler 2", company: "Elite", score: 35 },
             { name: "Spieler 3", company: "Anfänger", score: 10 }
         ];
-
-        // Lade Highscores vom Server
-        fetch('/api/scores')
-            .then(res => res.json())
-            .then(data => {
-                if(data && Array.isArray(data)) {
-                    highScores = data;
-                    updateScoreList();
-                }
-            })
-            .catch(err => console.warn("Lokal gespielt, lade Standard-Scores:", err));
 
         // Modern Premium Materials
         const headMaterial = new THREE.MeshPhysicalMaterial({ 
@@ -738,26 +727,12 @@
             const name = nameInput.value || "Anonym";
             const company = companyInput.value || "Profi";
             
-            // Direkt im lokalen Array updaten für schnelles UI
             highScores.push({ name, company, score });
             highScores.sort((a, b) => b.score - a.score);
             highScores = highScores.slice(0, 10);
-            updateScoreList();
+            localStorage.setItem('premiumSnakeScores', JSON.stringify(highScores));
             
-            // An Server senden
-            fetch('/api/scores', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, company, score })
-            })
-            .then(res => res.json())
-            .then(data => {
-                if(data && Array.isArray(data)) {
-                    highScores = data;
-                    updateScoreList();
-                }
-            })
-            .catch(err => console.warn("Fehler beim Speichern, lokal verwendet.", err));
+            updateScoreList();
             
             // Cleanup input
             nameInput.value = '';
