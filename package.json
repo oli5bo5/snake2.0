@@ -1,0 +1,12 @@
+{
+  "name": "snake3d-multiplayer",
+  "version": "1.0.0",
+  "description": "3D Snake Game with Global Leaderboard",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
