@@ -36,6 +36,7 @@
             color: var(--text-main);
             user-select: none;
             -webkit-font-smoothing: antialiased;
+            touch-action: none;
         }
 
         #ui-layer {
@@ -291,6 +292,64 @@
             z-index: 20;
         }
 
+        /* Mobile D-Pad */
+        #d-pad {
+            display: none;
+            position: absolute;
+            bottom: 40px;
+            right: 40px;
+            width: 140px;
+            height: 140px;
+            z-index: 50;
+        }
+
+        .d-btn {
+            position: absolute;
+            width: 45px;
+            height: 45px;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.2rem;
+            cursor: pointer;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        .d-btn:active {
+            background: rgba(0, 229, 255, 0.2);
+            transform: scale(0.9);
+        }
+
+        #btn-up { top: 0; left: 47.5px; }
+        #btn-down { bottom: 0; left: 47.5px; }
+        #btn-left { top: 47.5px; left: 0; }
+        #btn-right { top: 47.5px; right: 0; }
+
+        @media (max-width: 768px), (pointer: coarse) {
+            #d-pad {
+                display: block;
+            }
+            .bottom-left-container {
+                left: 20px;
+                bottom: 20px;
+                transform: scale(0.85);
+                transform-origin: bottom left;
+            }
+            .controls-hint {
+                display: none;
+            }
+            h1 { font-size: 1.5rem !important; }
+            #score-value { font-size: 2.5rem !important; }
+            .overlay-center { width: 95vw; padding: 20px; }
+            #high-scores { width: 280px; }
+        }
     </style>
 </head>
 <body>
@@ -350,6 +409,14 @@
     </div>
     
     <div class="controls-hint">W A S D / PFEILTASTEN</div>
+
+    <!-- Mobile D-Pad -->
+    <div id="d-pad">
+        <div id="btn-up" class="d-btn">▲</div>
+        <div id="btn-down" class="d-btn">▼</div>
+        <div id="btn-left" class="d-btn">◀</div>
+        <div id="btn-right" class="d-btn">▶</div>
+    </div>
 
     <script type="module">
         import * as THREE from 'three';
@@ -698,19 +765,68 @@
         }
 
         // Input
-        window.addEventListener('keydown', (e) => {
+        function handleInput(dir) {
             if (!gameActive) return;
+            switch(dir) {
+                case 'up': if (snakeDirection.z !== 1) nextDirection = { x: 0, z: -1 }; break;
+                case 'down': if (snakeDirection.z !== -1) nextDirection = { x: 0, z: 1 }; break;
+                case 'left': if (snakeDirection.x !== 1) nextDirection = { x: -1, z: 0 }; break;
+                case 'right': if (snakeDirection.x !== -1) nextDirection = { x: 1, z: 0 }; break;
+            }
+        }
+
+        window.addEventListener('keydown', (e) => {
             switch(e.key) {
-                case 'ArrowUp': case 'w': case 'W':
-                    if (snakeDirection.z !== 1) nextDirection = { x: 0, z: -1 }; break;
-                case 'ArrowDown': case 's': case 'S':
-                    if (snakeDirection.z !== -1) nextDirection = { x: 0, z: 1 }; break;
-                case 'ArrowLeft': case 'a': case 'A':
-                    if (snakeDirection.x !== 1) nextDirection = { x: -1, z: 0 }; break;
-                case 'ArrowRight': case 'd': case 'D':
-                    if (snakeDirection.x !== -1) nextDirection = { x: 1, z: 0 }; break;
+                case 'ArrowUp': case 'w': case 'W': handleInput('up'); break;
+                case 'ArrowDown': case 's': case 'S': handleInput('down'); break;
+                case 'ArrowLeft': case 'a': case 'A': handleInput('left'); break;
+                case 'ArrowRight': case 'd': case 'D': handleInput('right'); break;
             }
         });
+
+        // Touch swipe controls
+        let touchStartX = 0;
+        let touchStartY = 0;
+        window.addEventListener('touchstart', e => {
+            touchStartX = e.changedTouches[0].screenX;
+            touchStartY = e.changedTouches[0].screenY;
+        }, {passive: false});
+
+        window.addEventListener('touchmove', e => {
+            if(gameActive) e.preventDefault(); // Prevent scrolling while playing
+        }, {passive: false});
+
+        window.addEventListener('touchend', e => {
+            if (!gameActive) return;
+            let touchEndX = e.changedTouches[0].screenX;
+            let touchEndY = e.changedTouches[0].screenY;
+            
+            let dx = touchEndX - touchStartX;
+            let dy = touchEndY - touchStartY;
+            
+            if (Math.abs(dx) > Math.abs(dy)) {
+                if (Math.abs(dx) > 30) handleInput(dx > 0 ? 'right' : 'left');
+            } else {
+                if (Math.abs(dy) > 30) handleInput(dy > 0 ? 'down' : 'up');
+            }
+        });
+
+        // D-Pad Event listeners
+        const bindDpad = (id, dir) => {
+            const el = document.getElementById(id);
+            el.addEventListener('touchstart', (e) => {
+                e.preventDefault(); // Prevent double triggering
+                handleInput(dir);
+            }, {passive: false});
+            el.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                handleInput(dir);
+            });
+        };
+        bindDpad('btn-up', 'up');
+        bindDpad('btn-down', 'down');
+        bindDpad('btn-left', 'left');
+        bindDpad('btn-right', 'right');
 
         // UI Handlers
         startBtn.addEventListener('click', initThreeContextAndGame);
